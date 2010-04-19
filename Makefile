@@ -1,4 +1,5 @@
 
+# perhaps change to php-cli for your system
 PHPCLI := /usr/bin/php
 
 PHPDBIN := phpd

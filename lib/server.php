@@ -1,4 +1,5 @@
 <?php
+// TODO... git rm
 function socket_error() {
   global $logos;
   $logos->log("exiting on socket failure: %m");
