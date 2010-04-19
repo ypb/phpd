@@ -1,55 +1,90 @@
 <?php
 
-function exit_on_fork($signo) {
-  global $logos;
-  $logos->log("fork parent exiting with signal " . $signo);
-  evac("parent of the fork exiting with signal " . $signo);
-}
+include("lib/logging.php");
 
-function shutdown($sig) {
-  global $logos, $conn;
-  $logos->log("shutting down on SIG=" . $sig);
-  socket_shutdown($conn);
-  socket_close($conn);
-  exit(0);
-}
+class Daemon {
 
-/* class Daemon { */
+  function __construct($pi, $port, $addy) {
+	$this->pathi = $pi;
+	$this->port = $port;
+	$this->addy = $addy;
+	$this->logos = new Logger($this->pathi['filename']);
+	$this->clients = array();
+   }
 
-/*   function __constructor($pid) { */
-/* 	$this->dpid = $pid; */
-/*   } */
+  function init() {
+	if (! $this->logos->init())
+	  evac("could not connect to syslogd", 1);
+	$this->logos->log("starting");
+	$this->status();
+	$this->net = new Network($this->logos, $this->addy, $this->port);
+  }
 
-  function daemonize($ppid) {
-	global $logos;
+  function status() {
+	$this->logos->debug("cwd=" . realpath($this->pathi['dirname']));
+	$this->logos->debug("port=" . $this->port);
+	$this->logos->debug("addy=" . $this->addy);
+  }
+
+  function daemonize() {
+	$this->logos->debug("forking");
 	$pid = pcntl_fork();
 	if ($pid == -1) {
 	  evac('could not fork', 1);
 	} else if ($pid) {
-	  // we are the parent
-	  exit_on_fork(-1); // not exit status
-	  pcntl_signal(SIGTERM, "exit_on_fork");
-	  $wait = 0;
-	  //	  pcntl_wait($stat); //Protect against Zombie children
-	  while($wait < 21) {
-		sleep(1);
-		$logos->log("waited " . $wait);
-		$wait += 1;
-	  }
-	  $logos->log("waiting done(". $stat . "), exiting");
 	  exit(0);
 	} else {
-	  // we are the child
-	  $logos->log("forked from " . $ppid);
-	  $globvars['PID'] = posix_getpid();
-	  $logos->status();
-	  sleep(1);
 	  posix_setsid();
+	  pcntl_signal(SIGTERM, array(&$this, "sig_shutdown"));
+	  $this->logos->debug("forked");
 	  // TODO close fdes and change user... after bind?
 	  sleep(1);
-	  //	  posix_kill($ppid, SIGTERM);
-	  //	  sleep(6);
 	}
   }
-/* } */
+
+  function sig_shutdown($sig) {
+	$this->logos->log("caught SIGNAL=" . $sig);
+	$this->shutdown();
+  }
+  function shutdown() {
+	$this->logos->log("shutting down");
+	// clean clients? SURE
+	$this->cleanclients();
+	$this->net->stop();
+	exit(0);
+  }
+
+  function listen() {
+	if ($this->net->listen()) {
+	  $this->logos->log("listening");
+	} else {
+	  // STRONGLY RECONSIDER, bah, doesn't matter anyway...
+	  $this->shutdown();
+	}
+  }
+  function accept() {
+	for (;;) {
+	  if ($con = $this->net->accept())
+		$this->addClient($con);
+	  // LOL (PHP 5 >= 5.3.0)
+	  // pcntl_signal_dispatch();
+	}
+  }
+  function addClient($con) {
+	socket_getpeername($con, $addr, $port);
+	$id = $addr . ":" . $port;
+	array_push($this->clients, array('id' => $id, 'sock' => $con));
+	$this->logos->log("accepted connection from " . $id);
+  }
+  function cleanclients() {
+	foreach ($this->clients as $client) {
+	  $tmp = $client['sock'];
+	  if (isset($tmp)) {
+		socket_shutdown($tmp);
+		socket_close($tmp);
+		$client['sock'] = NULL;
+	  }
+	}
+  }
+}
 ?>

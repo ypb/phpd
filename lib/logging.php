@@ -13,7 +13,7 @@ class Logger {
 	return($this->syslog_active = TRUE);
   }
 
-  function __destructor() {
+  function __destruct() {
 	if ($this->syslog_active) {
 	  $this->debug("closing syslog");
 	  closelog();
@@ -44,13 +44,6 @@ class Logger {
 	  print($arg);
 	}
 	print(".\n");
-  }
-  // aaa PFE!
-  function status() {
-	global $globvars;
-	foreach($globvars as $key => $val) {
-	  $this->log($key . "=" . $val);
-	}
   }
 }
 ?>
