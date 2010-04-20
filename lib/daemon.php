@@ -1,22 +1,8 @@
 <?php
 
 include("lib/logging.php");
-
-function r_addy_port($socket) {
-  if (socket_getpeername($socket, $addr, $port))
-	return $addr . ":" . $port;
-  else
-	return FALSE;
-}
-
-function destroy_connection($socket) {
-  if (socket_shutdown($socket)) {
-	socket_close($socket);
-	return TRUE;
-  } else {
-	return FALSE;
-  }
-}
+include("lib/utils.php");
+include("lib/network.php");
 
 class Daemon {
 
@@ -108,12 +94,12 @@ class Daemon {
 			  }
 			} else {
 			  // close down...
-			  $this->logos->log("widing down client(" . $id . "): " . socket_strerror(socket_last_error($socket)));
+			  $this->logos->log("widing down client(" . $id . ") on: " . socket_strerror(socket_last_error($socket)));
 			  if (destroy_connection($socket)) {
 				unset($this->clientz[$id]);
 				$this->logos->log("removed client(" . $id . ")");
 			  } else {
-				$this->logos->log("tearing down connection " . $id . "failed");
+				$this->logos->log("tearing down silent connection " . $id . "failed");
 			  }
 			}
 		  }

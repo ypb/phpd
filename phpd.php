@@ -22,7 +22,6 @@ if (!chdir($ab)) {
 
 include("config.php");
 include("lib/daemon.php");
-include("lib/network.php");
 
 $daemon = new Daemon($pi, $port, $addy);
 $daemon->init();
