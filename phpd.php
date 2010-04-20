@@ -29,7 +29,7 @@ $daemon = new Daemon($pi, $port, $addy);
 $daemon->init();
 $daemon->daemonize();
 $daemon->listen();
-$daemon->accept();
+$daemon->accepting();
 
 while ($conn = socket_accept($socket)) {
   socket_getpeername($conn, $addr, $port);
