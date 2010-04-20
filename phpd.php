@@ -23,31 +23,14 @@ if (!chdir($ab)) {
 include("config.php");
 include("lib/daemon.php");
 include("lib/network.php");
-include("lib/server.php");
 
 $daemon = new Daemon($pi, $port, $addy);
 $daemon->init();
 $daemon->daemonize();
 $daemon->listen();
+// loop
 $daemon->accepting();
 
-while ($conn = socket_accept($socket)) {
-  socket_getpeername($conn, $addr, $port);
-  // is it unique? theoretically should be...
-  $id = $addr . ":" . $port;
-  // check connection limit... prune if needed
-  //  $connections[$id] = $conn;
-  $client = server($conn, $id);
-  if ($client === FALSE) {
-	// clean up here, then
-	socket_close($conn);
-	$logos->log("failed accepting connection from " . $id . ": %m");
-  } else {
-	//queue client in an array
-	$logos->log("accepted connection from " . $id);
-  }
-}
-
-$logos->log("exiting(PID=". $globvars['PID'] .")");
-exit(0);
+// shouldn't be reaching this place
+evac("exiting(weirdly)", 0);
 ?>
