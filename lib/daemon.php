@@ -87,10 +87,15 @@ class Daemon {
 			// theoretically should have something tangible to read...
 			if ($data = $this->net->read($socket)) {
 			  if ($data != "") {
-				$back = $client->process($data);
-				// for now simply write back immediately
-				$this->net->write($socket, $back);
+				if ($back = $client->process($data)) {
+				  // for now simply write back immediately
+				  $wrote = $this->net->write($socket, $back);
+				  while (! $client->confirm_write($wrote)) {
+					// sleep(1); some...
+					$wrote = $this->net->write($socket, $client->pending());
+				  }
 				// where to error/length check... in the Client of course ;}
+				}
 			  }
 			} else {
 			  // close down...
@@ -109,7 +114,7 @@ class Daemon {
   }
   function addClient($con) {
 	if ($id = r_addy_port($con)) {
-	  $this->clientz[$id] = new Client($id, $con);
+	  $this->clientz[$id] = new Client($this->logos, $id, $con);
 	  $this->logos->log("accepted connection from " . $id);
 	} else {
 	  destroy_connection($con);

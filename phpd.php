@@ -2,6 +2,11 @@
 
 declare(ticks = 1);
 
+ini_set('mbstring.internal_encoding', "UTF-8");
+//ini_set('mbstring.substitute_character', "none");
+//ini_set('mbstring.language', "uni");
+//ini_set('mbstring.detect_order', "auto");
+
 $pi = pathinfo($_SERVER['argv'][0]);
 
 // rather useless since as a daemon we'll be closing STDFDs
