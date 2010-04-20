@@ -70,10 +70,6 @@ class Network {
   }
 }
 
-function Process($str) {
-  return str_rot13($str);
-}
-
 class Client {
   function __construct($log, $id, $sock) {
 	$this->id = $id;
@@ -90,7 +86,7 @@ class Client {
 	// for now hacky logging...
 	$this->logos = $log ;
   }
-  function process($string) {
+  function process_with_process($string) {
 	$this->logos->debug($this->clid . " processing: " . $string);
 	$this->in_buf .= $this->to_default_encoding($string);
 	$this->logos->debug($this->clid . " in_buf=" . $this->in_buf);
@@ -125,6 +121,7 @@ class Client {
 	return $this->out_buf;
   }
   function mb_gather_data() {
+	// == should be fine, too? still it runs once too often on simple \r \n etc...
 	if ($this->in_buf === "")
 	  return FALSE;
 	$open = FALSE;

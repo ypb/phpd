@@ -27,6 +27,7 @@ if (!chdir($ab)) {
 
 include("config.php");
 include("lib/daemon.php");
+include("lib/processing.php");
 
 $daemon = new Daemon($pi, $port, $addy);
 $daemon->init();

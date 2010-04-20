@@ -87,7 +87,7 @@ class Daemon {
 			// theoretically should have something tangible to read...
 			if ($data = $this->net->read($socket)) {
 			  if ($data != "") {
-				if ($back = $client->process($data)) {
+				if ($back = $client->process_with_process($data)) {
 				  // for now simply write back immediately
 				  $wrote = $this->net->write($socket, $back);
 				  while (! $client->confirm_write($wrote)) {
