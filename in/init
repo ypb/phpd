@@ -1,0 +1,81 @@
+#!/bin/sh
+# A semi-general, semi-robust init script... somewhoot tested.
+
+# it will require configuring in which runlevels to run
+# redhats use chkconfig for this e.g.
+# chkconfig: 345 80 30
+# description: phpd Our itsy bitsy rfid reader
+# processname: phpd
+# not sure about debians...
+
+# set -x # if it breaks...
+
+USER=@USERNAME@
+PROGNAME=@PROGNAME@
+LIBEXEC=@LIBEXEC@
+# if PROGNAME doesn't work perhaps...
+COMMAND=@COMMAND@
+# or just use pidof?
+
+PIDFILE=/var/run/${PROGNAME}.pid
+
+# this is wery convulated
+phpd_pidof() {
+    ps -C ${PROGNAME} -o pid= -o args= | grep "${COMMAND}" | cut -d' ' -f1 | tr -d ' '
+}
+
+phpd_start() {
+	su ${USER} -c ${LIBEXEC}/${PROGNAME};
+	if [ $? -eq 0 ]; then
+		# wait for it to background
+		sleep 2s;
+		PID=`phpd_pidof`;
+		if [ ! -z "${PID}" ]; then
+			echo $PID > ${PIDFILE};
+		fi
+		echo "${PROGNAME} PID=$PID started.";
+	else
+		echo "${PROGNAME} failed to start.";
+	fi
+}
+
+phpd_stop() {
+	if [ -e ${PIDFILE} ]; then
+		PID=`cat ${PIDFILE}`;
+	else
+		PID=`phpd_pidof`;
+	fi
+	if [ ! -z "$PID" ]; then
+		kill -TERM $PID;
+		if [ $? -eq 0 ]; then
+			rm -f ${PIDFILE};
+			echo "${PROGNAME} PID=$PID stopped.";
+		else
+			echo "${PROGNAME} PID=$PID failed to stop.";
+		fi
+	else
+		echo "Couldn't determine PID of ${PROGNAME}";
+	fi
+}
+
+phpd_restart() {
+  phpd_stop
+# perhaps even longer since i observed that port can be still in CLOSE_WAIT state
+# after "clean" exit and immediate restart may fail to rebind... TOPONDER.
+  sleep 3s
+  phpd_start
+}
+
+case "$1" in
+'start')
+  phpd_start
+  ;;
+'stop')
+  phpd_stop
+  ;;
+'restart')
+  phpd_restart
+  ;;
+*)
+  echo "usage $0 start|stop|restart"
+esac
