@@ -6,42 +6,34 @@ include("lib/network.php");
 
 class Daemon {
 
-  function __construct($pi, $port, $addy) {
+  function __construct($pi, $port, $addy, $logdir) {
 	$this->pathi = $pi;
 	$this->port = $port;
 	$this->addy = $addy;
-	$this->logos = new Logger($this->pathi['filename']);
+	$this->logdir = $logdir;
 	$this->clientz = array();
    }
 
   function init() {
+	$this->logos = new Logger($this->pathi['filename'], $this->logdir);
 	if (! $this->logos->init())
-	  evac("could not connect to syslogd", 1);
+	  evac("failed to init logging subsystem", 1);
 	$this->logos->log("starting");
 	$this->status();
 	$this->net = new Network($this->logos, $this->addy, $this->port);
+	pcntl_signal(SIGTERM, array(&$this, "signal_handler"));
   }
 
   function status() {
 	$this->logos->debug("cwd=" . realpath($this->pathi['dirname']));
 	$this->logos->debug("port=" . $this->port);
 	$this->logos->debug("addy=" . $this->addy);
+	$this->logos->debug("logdir=" . $this->logdir);
   }
 
   function daemonize() {
-	$this->logos->debug("forking");
-	$pid = pcntl_fork();
-	if ($pid == -1) {
-	  evac('could not fork', 1);
-	} else if ($pid) {
-	  exit(0);
-	} else {
-	  posix_setsid();
-	  pcntl_signal(SIGTERM, array(&$this, "signal_handler"));
-	  $this->logos->debug("forked");
-	  // TODO close fdes and change user... after bind?
-	  sleep(1);
-	}
+	fork();
+	$this->init();
   }
 
   function signal_handler($sig) {

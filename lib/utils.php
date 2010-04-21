@@ -15,4 +15,17 @@ function destroy_connection($socket) {
 	return FALSE;
   }
 }
+
+function fork() {
+  $pid = pcntl_fork();
+  if ($pid == -1) {
+	evac('could not fork', 1);
+  } else if ($pid) {
+	evac('fork succeded', 0);
+  } else {
+	posix_setsid();
+	// TODO close fdes and change user... after bind?
+	sleep(1);
+  }
+}
 ?>

@@ -62,6 +62,7 @@ phpd_restart() {
   phpd_stop
 # perhaps even longer since i observed that port can be still in CLOSE_WAIT state
 # after "clean" exit and immediate restart may fail to rebind... TOPONDER.
+# perhaps we need to set "reusable address" on at least main socket... or not.
   sleep 3s
   phpd_start
 }
