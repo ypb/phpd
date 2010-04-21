@@ -29,7 +29,7 @@ include("config.php");
 include("lib/daemon.php");
 include("lib/processing.php");
 
-$daemon = new Daemon($pi, $port, $addy, $logdir);
+$daemon = new Daemon($pi, $port, $addy, $logdir, $logoptions);
 $daemon->daemonize();
 $daemon->listen();
 // loop

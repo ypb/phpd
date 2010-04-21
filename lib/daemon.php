@@ -6,16 +6,17 @@ include("lib/network.php");
 
 class Daemon {
 
-  function __construct($pi, $port, $addy, $logdir) {
+  function __construct($pi, $port, $addy, $logdir, $logopts) {
 	$this->pathi = $pi;
 	$this->port = $port;
 	$this->addy = $addy;
 	$this->logdir = $logdir;
+	$this->logopts = $logopts;
 	$this->clientz = array();
    }
 
   function init() {
-	$this->logos = new Logger($this->pathi['filename'], $this->logdir);
+	$this->logos = new Logger($this->pathi['filename'], $this->logdir, $this->logopts);
 	if (! $this->logos->init())
 	  evac("failed to init logging subsystem", 1);
 	$this->logos->log("starting");
@@ -29,6 +30,7 @@ class Daemon {
 	$this->logos->debug("port=" . $this->port);
 	$this->logos->debug("addy=" . $this->addy);
 	$this->logos->debug("logdir=" . $this->logdir);
+	$this->logos->debug("logopts=" . print_r($this->logopts, TRUE));
   }
 
   function daemonize() {

@@ -2,9 +2,11 @@
 
 class Logger {
 
-  function __construct($name = "PHPD", $logdir) {
+  function __construct($name = "PHPD", $logdir, $logopts) {
 	$this->ident = $name;
 	$this->logdir = $logdir;
+	$this->logdata = $logopts['logdata'];
+	$this->debug = $logopts['debug'];
 	$this->syslog_active = FALSE;
 	$this->pid = posix_getpid();
   }
@@ -12,12 +14,14 @@ class Logger {
   function init() {
 	if (! openlog($this->ident, LOG_CONS | LOG_PID, LOG_DAEMON))
 	  return(FALSE);
-	$logfile = $this->logdir . "/datalog";
-	if (! ($datalogf = fopen($logfile, "ab"))) {
-	  return(FALSE);
-	} else {
-	  chmod($logfile, 0640);
-	  $this->datalogf=$datalogf;
+	if ($this->logdata === TRUE) {
+	  $logfile = $this->logdir . "/datalog";
+	  if (! ($datalogf = fopen($logfile, "ab"))) {
+		return(FALSE);
+	  } else {
+		chmod($logfile, 0640);
+		$this->datalogf=$datalogf;
+	  }
 	}
 	return($this->syslog_active = TRUE);
   }
@@ -45,7 +49,8 @@ class Logger {
   }
 
   function debug($msg) {
-	$this->log($msg, LOG_DEBUG);
+	if ($this->debug === TRUE)
+	  $this->log($msg, LOG_DEBUG);
   }
 
   function datalog($msg) {
