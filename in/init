@@ -21,7 +21,7 @@ PIDFILE=/var/run/${PROGNAME}.pid
 
 # this is wery convulated
 phpd_pidof() {
-    ps -C ${PROGNAME} -o pid= -o args= | grep "${COMMAND}" | cut -d' ' -f1 | tr -d ' '
+    ps -C ${PROGNAME} -o pid= -o args= | grep "${COMMAND}" | sed s/^[[:blank:]]*//g | cut -d' ' -f1 | tr -d ' '
 }
 
 phpd_start() {
