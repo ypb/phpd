@@ -87,14 +87,14 @@ class Client {
 	$this->logos = $log ;
   }
   function process_with_process($string) {
-	$this->logos->datalog($this->clid . " processing: " . bin2hex($string));
+	$this->logos->datalog($this->clid . " processing=\n" . $string);
 	$this->in_buf .= $this->to_default_encoding($string);
-	$this->logos->datalog($this->clid . " in_buf=" . bin2hex($this->in_buf));
+	$this->logos->datalog($this->clid . " in_buf=\n" . $this->in_buf);
 	// TODO perhaps we should try to do more than MERELY convert?
 	// there is a worse case scenario when a mb char will end up being split
 	// between subsequent "packets"; mb_strcut has some heuristic for that...
 	while ($found = $this->mb_gather_data()) {
-	  $this->logos->datalog($this->clid . " found=" . $found);
+	  $this->logos->datalog($this->clid . " found=\n" . $found);
 	  $this->data[] = $found;
 	}
 	foreach ($this->data as $key => $datum) {
@@ -128,6 +128,7 @@ class Client {
 	$close = FALSE;
 	if ($this->continue) {
 	  $close = mb_strpos($this->in_buf, ">", $this->in_position, $this->default_encoding);
+	  $this->logos->datalog($this->clid . " continuing in mb_gather_data() close=" . $close);
 	  if ($close !== FALSE) {
 		$open = $this->in_position;
 		$len = mb_strlen($this->in_buf);
@@ -155,6 +156,7 @@ class Client {
 	  } else {
 		// discard in_buf
 		$this->in_buf = "";
+		$this->logos->datalog($this->clid . " in mb_gather_data() in_buf discarded");
 		return FALSE;
 	  }
 	}

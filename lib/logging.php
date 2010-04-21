@@ -54,6 +54,7 @@ class Logger {
 	  // want smth like perhaps quoted_printable_encode on $msg but it's (PHP 5 >= 5.3.0)
 	  fwrite($this->datalogf, $time . " " . $this->ident . "[" . $this->pid . "]: " . $msg . "\n");
 	  // hmmm... individually wrapped "binary" data in some cases with bin2hex, oh well...
+	  // perhaps bin2hex is a bit extreme, reverted to writing raw data after "=\n"
 	}
   }
 
