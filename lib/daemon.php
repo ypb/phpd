@@ -125,7 +125,7 @@ class Daemon {
 				  $this->logos->debug("tearing down connection " . $cid . "faulted with: " . socket_strerror($err));
 				}
 				//would we want to keep client after all? this calls for serious investigative work...
-				removeClient($cid);
+				$this->removeClient($cid);
 			  }
 			}
 		  }
@@ -175,7 +175,7 @@ class Daemon {
 		  $this->logos->debug("client(" . $id . ") disconnection faulted with:" . socket_strerror($err));
 		}
 		// remove anyway
-		removeClient($id);
+		$this->removeClient($id);
 	  } else {
 		// TOFIX this is dead code since we unset whole client not his socket...
 		$this->logos->debug("client(" . $id .") already socketless");
