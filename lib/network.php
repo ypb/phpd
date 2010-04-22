@@ -89,12 +89,15 @@ class Client {
   }
   function process_with_process($string) {
 	$this->logos->datalog($this->clid . " processing=\n" . $string);
-	$this->in_buf .= $this->to_default_encoding($string);
-	$this->logos->datalog($this->clid . " in_buf=\n" . $this->in_buf);
+	// do not try to convert... what would happen on misaligned data?
+	//$this->in_buf .= $this->to_default_encoding($string);
+	// at least check encoding...?
+	$this->in_buf .= $this->check_encoding($string);
+	//$this->logos->datalog($this->clid . " in_buf=\n" . $this->in_buf);
 	// TODO perhaps we should try to do more than MERELY convert?
 	// there is a worse case scenario when a mb char will end up being split
 	// between subsequent "packets"; mb_strcut has some heuristic for that...
-	while ($found = $this->mb_gather_data()) {
+	while ($found = $this->gather_data()) {
 	  $this->logos->datalog($this->clid . " found=\n" . $found);
 	  $this->data[] = $found;
 	}
@@ -121,6 +124,64 @@ class Client {
   function pending() {
 	return $this->out_buf;
   }
+  // may be expensive?
+  function check_encoding($x) {
+	$from_encoding = mb_detect_encoding($x);
+	if ($from_encoding === FALSE) {
+	  $this->logos->datalog($this->clid . " failed to detect from_encoding");
+	} else if ($from_encoding !== $this->default_encoding) {
+	  $this->logos->datalog($this->clid . " from_encoding=" . $from_encoding . " <> " . "def_encoding=" . $this->default_encoding);
+	}
+	return $x;
+  }
+  // this is "exact" c&p of mb_gather_data that assuming incoming data is UTF-8
+  // uses single byte PHP functions to search for the {<,>} markerks
+  // we'd be in trouble in case of markers being mb (even only utf-8...)
+  function gather_data() {
+	// == should be fine, too? still it runs once too often on simple \r \n etc...
+	if ($this->in_buf === "")
+	  return FALSE;
+	$open = FALSE;
+	$close = FALSE;
+	if ($this->continue) {
+	  $close = strpos($this->in_buf, ">", $this->in_position);
+	  $this->logos->datalog($this->clid . " continuing in gather_data() close=" . $close);
+	  if ($close !== FALSE) {
+		$open = $this->in_position;
+		$len = strlen($this->in_buf);
+		$ret = substr($this->in_buf, $open, ($close - $open)+1);
+		$this->in_buf = substr($this->in_buf, $close + 1, $len - $close);
+		$this->continue = FALSE;
+		$this->in_position = 0;
+		return $ret;
+	  }
+	  return FALSE;
+	} else {
+	  $open = strpos($this->in_buf, "<", 0);
+	  $this->logos->datalog($this->clid . " in gather_data() open=" . $open);
+	  if ($open !== FALSE) {
+		$close = strpos($this->in_buf, ">", $open);
+		if ($close !== FALSE) {
+		  $len = strlen($this->in_buf);
+		  $ret = substr($this->in_buf, $open, ($close - $open)+1);
+		  $this->in_buf = substr($this->in_buf, $close + 1, $len - $close);
+		  return $ret;
+		}
+		$this->continue = TRUE;
+		$this->in_position = $open;
+		return FALSE;
+	  } else {
+		// discard in_buf
+		$this->in_buf = "";
+		$this->logos->datalog($this->clid . " in gather_data() in_buf discarded");
+		return FALSE;
+	  }
+	}
+  }
+  // this function tries to be too clever for its own good; use it in
+  // conjunction with following to_default_encoding, but if default_encoding is
+  // not utf-8 there is all the more probability of data corruption if we do not make
+  // effort to align it between possible packates... see PHP docs about mb_strcut
   function mb_gather_data() {
 	// == should be fine, too? still it runs once too often on simple \r \n etc...
 	if ($this->in_buf === "")
