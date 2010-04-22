@@ -85,6 +85,16 @@ class Daemon {
 				// if we were able to read smth we should have been able to get remote addy, but...
 				if (is_string($id)) {
 				  $client = $this->clientz[$id];
+				} else {
+				  $client = $this->findClient($socket);
+				  //we will try to write, but this is probably EMERGENCY class
+				}
+				if ($client === NULL) {
+				  //this is VERY BAD! not debug level BAD but critical level BAD
+				  $this->logos->debug("got data but don't know who to tell: " . socket_strerror($id));
+				} else {
+				  if (! is_string($id))
+					$this->logos->debug("found client with peerless socket: " . socket_strerror($id));
 				  if ($back = $client->process_with_process($data)) {
 					// for now simply write back immediately
 					$wrote = $this->net->write($socket, $back);
@@ -94,9 +104,6 @@ class Daemon {
 					}
 					// where to error/length check... in the Client of course ;}
 				  }
-				} else {
-				  //this is VERY BAD! not debug level BAD but critical level BAD
-				  $this->logos->debug("got data but don't know who to tell: " . socket_strerror($id));
 				}
 			  }
 			} else {
