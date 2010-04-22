@@ -10,15 +10,15 @@ class Network {
   function listen() {
 	// perhaps a short circuit with an OR...?
 	if (! ($sock = socket_create(AF_INET, SOCK_STREAM, 0))) {
-	  $this->logos->log("couldn't create socket: "  . socket_strerror(socket_last_error()));
+	  $this->logos->debug("couldn't create socket: "  . socket_strerror(socket_last_error()));
 	  return FALSE;
 	}
 	if (! socket_bind($sock, $this->addy, $this->port)) {
-	  $this->logos->log("couldn't bind to socket: " . socket_strerror(socket_last_error($sock)));
+	  $this->logos->debug("couldn't bind to socket: " . socket_strerror(socket_last_error($sock)));
 	  return FALSE;
 	}
 	if (! socket_listen($sock)) {
-	  $this->logos->log("failed to listen on socket: " . socket_strerror(socket_last_error($sock)));
+	  $this->logos->debug("failed to listen on socket: " . socket_strerror(socket_last_error($sock)));
 	  return FALSE;
 	}
 	$this->socket = $sock;

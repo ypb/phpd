@@ -6,12 +6,13 @@ include("lib/network.php");
 
 class Daemon {
 
-  function __construct($pi, $port, $addy, $logdir, $logopts) {
-	$this->pathi = $pi;
-	$this->port = $port;
-	$this->addy = $addy;
-	$this->logdir = $logdir;
-	$this->logopts = $logopts;
+  function __construct($conf) {
+	$this->pathi = $conf['pathinfo'];
+	$this->port = $conf['port'];
+	$this->addy = $conf['addy'];
+	//$this->config = $conf;
+	$this->logdir = $conf['logdir'];
+	$this->logopts = $conf['logopts'];
 	$this->clientz = array();
    }
 
@@ -58,6 +59,7 @@ class Daemon {
 	if ($this->net->listen()) {
 	  $this->logos->log("listening");
 	} else {
+	  $this->logos->log("failed to settle into listening state");
 	  // STRONGLY RECONSIDER, bah, doesn't matter anyway...
 	  $this->shutdown(1);
 	}
@@ -93,12 +95,12 @@ class Daemon {
 			  }
 			} else {
 			  // close down...
-			  $this->logos->log("widing down client(" . $id . ") on: " . socket_strerror(socket_last_error($socket)));
+			  $this->logos->debug("widing down client(" . $id . ") on: " . socket_strerror(socket_last_error($socket)));
 			  if (destroy_connection($socket)) {
 				unset($this->clientz[$id]);
-				$this->logos->log("removed client(" . $id . ")");
+				$this->logos->debug("removed client(" . $id . ")");
 			  } else {
-				$this->logos->log("tearing down silent connection " . $id . "failed");
+				$this->logos->debug("tearing down silent connection " . $id . "failed");
 			  }
 			}
 		  }
@@ -109,10 +111,10 @@ class Daemon {
   function addClient($con) {
 	if ($id = r_addy_port($con)) {
 	  $this->clientz[$id] = new Client($this->logos, $id, $con);
-	  $this->logos->log("accepted connection from " . $id);
+	  $this->logos->debug("accepted connection from " . $id);
 	} else {
 	  destroy_connection($con);
-	  $this->logos->log("failed to get remote address of new connection");
+	  $this->logos->debug("failed to get remote address of new connection");
 	}
   }
   function cleanClients() {

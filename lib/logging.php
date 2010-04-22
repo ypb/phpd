@@ -7,13 +7,15 @@ class Logger {
 	$this->logdir = $logdir;
 	$this->logdata = $logopts['logdata'];
 	$this->debug = $logopts['debug'];
-	$this->syslog_active = FALSE;
+	$this->syslog_active = $logopts['syslog'];
+	//will report wrong pid in case of forking, if ever...
 	$this->pid = posix_getpid();
   }
 
   function init() {
-	if (! openlog($this->ident, LOG_CONS | LOG_PID, LOG_DAEMON))
-	  return(FALSE);
+	if ($this->syslog_active === TRUE)
+	  if (! openlog($this->ident, LOG_CONS | LOG_PID, LOG_DAEMON))
+		return($this->syslog_active = FALSE);
 	if ($this->logdata === TRUE) {
 	  $logfile = $this->logdir . "/datalog";
 	  if (! ($datalogf = fopen($logfile, "ab"))) {
@@ -23,7 +25,7 @@ class Logger {
 		$this->datalogf=$datalogf;
 	  }
 	}
-	return($this->syslog_active = TRUE);
+	return(TRUE);
   }
 
   function __destruct() {
@@ -44,8 +46,9 @@ class Logger {
   function log($msg, $level = LOG_INFO) {
 	if ($this->syslog_active)
 	  syslog($level, $msg);
-	else
-	  $this->stdout($msg);
+	// TOPONDER what to do about those STDFDses...
+	/* else */
+	/*   $this->stdout($msg); */
   }
 
   function debug($msg) {
@@ -63,7 +66,7 @@ class Logger {
 	}
   }
 
-  function stdout() {
+  private function stdout() {
 	$args = func_get_args();
 
 	print($this->ident . ":");

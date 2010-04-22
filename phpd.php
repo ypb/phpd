@@ -29,7 +29,9 @@ include("config.php");
 include("lib/daemon.php");
 include("lib/processing.php");
 
-$daemon = new Daemon($pi, $port, $addy, $logdir, $logoptions);
+$phpd_conf['pathinfo'] = $pi;
+
+$daemon = new Daemon($phpd_conf);
 $daemon->daemonize();
 $daemon->listen();
 // loop
