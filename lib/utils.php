@@ -4,7 +4,7 @@ function r_addy_port($socket) {
   if (socket_getpeername($socket, $addr, $port))
 	return $addr . ":" . $port;
   else
-	return FALSE;
+	return socket_last_error($socket);
 }
 
 function destroy_connection($socket) {
@@ -12,7 +12,10 @@ function destroy_connection($socket) {
 	socket_close($socket);
 	return TRUE;
   } else {
-	return FALSE;
+	$err = socket_last_error($socket);
+	//be honest about our intentions
+	socket_close($socket);
+	return $err;
   }
 }
 

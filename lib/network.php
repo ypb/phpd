@@ -59,11 +59,12 @@ class Network {
 	if ($this->socket != FALSE) {
 	  // tell more about socket?
 	  $this->logos->debug("closing main socket");
-	  if (destroy_connection($this->socket)) {
+	  $err = destroy_connection($this->socket);
+	  if ($err === TRUE) {
 		$this->logos->debug("main socket closed");
 	  } else {
 		$ret = FALSE;
-		$this->logos->debug("failed to close main socket");
+		$this->logos->debug("failed to close main socket with: " . socket_strerror($err));
 	  }
 	}
 	return $ret;

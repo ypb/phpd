@@ -48,11 +48,12 @@ phpd_stop() {
 	if [ ! -z "$PID" ]; then
 		kill -TERM $PID;
 		if [ $? -eq 0 ]; then
-			rm -f ${PIDFILE};
 			echo "${PROGNAME} PID=$PID stopped.";
 		else
 			echo "${PROGNAME} PID=$PID failed to stop.";
 		fi
+		# we trust in phpd_pidof...
+		rm -f ${PIDFILE};
 	else
 		echo "Couldn't determine PID of ${PROGNAME}";
 	fi

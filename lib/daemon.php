@@ -76,31 +76,49 @@ class Daemon {
 		$socks = array_map($clientsocks, $this->clientz);
 		if ($conarr = $this->net->ready_to_read($socks)) {
 		  foreach ($conarr as $socket) {
-			// wanted to use array_filter, would have to search O(NxM)
-			// not sure what's less expensive
-			$id = r_addy_port($socket);
-			$client = $this->clientz[$id];
 			// theoretically should have something tangible to read...
 			if ($data = $this->net->read($socket)) {
 			  if ($data != "") {
-				if ($back = $client->process_with_process($data)) {
-				  // for now simply write back immediately
-				  $wrote = $this->net->write($socket, $back);
-				  while (! $client->confirm_write($wrote)) {
-					// sleep(1); some...
-					$wrote = $this->net->write($socket, $client->pending());
+				// wanted to use array_filter, would have to search O(NxM)
+				// not sure what's less expensive
+				$id = r_addy_port($socket);
+				// if we were able to read smth we should have been able to get remote addy, but...
+				if (is_string($id)) {
+				  $client = $this->clientz[$id];
+				  if ($back = $client->process_with_process($data)) {
+					// for now simply write back immediately
+					$wrote = $this->net->write($socket, $back);
+					while (! $client->confirm_write($wrote)) {
+					  // sleep(1); some...
+					  $wrote = $this->net->write($socket, $client->pending());
+					}
+					// where to error/length check... in the Client of course ;}
 				  }
-				// where to error/length check... in the Client of course ;}
+				} else {
+				  //this is VERY BAD! not debug level BAD but critical level BAD
+				  $this->logos->debug("got data but don't know who to tell: " . socket_strerror($id));
 				}
 			  }
 			} else {
-			  // close down...
-			  $this->logos->debug("widing down client(" . $id . ") on: " . socket_strerror(socket_last_error($socket)));
-			  if (destroy_connection($socket)) {
-				unset($this->clientz[$id]);
-				$this->logos->debug("removed client(" . $id . ")");
+			  // ERR... clean up... close down...
+			  $err = socket_last_error($socket);
+			  $client = $this->findClient($socket);
+			  // looks like we need O(NxM) search after all.
+			  if ($client === FALSE) {
+				//like this shouldn't ever happen
+				$this->logos->debug("AWOL client! Send the MPs!");
+				destroy_connection($socket);
 			  } else {
-				$this->logos->debug("tearing down silent connection " . $id . "failed");
+				$cid = $client->id;
+				$this->logos->debug("widing down client(" . $cid . ") on: " . socket_strerror($err));
+				$err = destroy_connection($socket);
+				if ($err === TRUE) {
+				  $this->logos->debug("removed client(" . $cid . ") connection");
+				} else {
+				  $this->logos->debug("tearing down connection " . $cid . "faulted with: " . socket_strerror($err));
+				}
+				//would we want to keep client after all? this calls for serious investigative work...
+				unset($this->clientz[$cid]);
 			  }
 			}
 		  }
@@ -109,13 +127,21 @@ class Daemon {
 	}
   }
   function addClient($con) {
-	if ($id = r_addy_port($con)) {
+	$id = r_addy_port($con);
+	if (is_string($id)) {
 	  $this->clientz[$id] = new Client($this->logos, $id, $con);
 	  $this->logos->debug("accepted connection from " . $id);
 	} else {
 	  destroy_connection($con);
-	  $this->logos->debug("failed to get remote address of new connection");
+	  $this->logos->debug("failed to get remote address of new connection: " . socket_strerror($id));
 	}
+  }
+  function findClient($con) {
+	foreach ($this->clientz as $id => $client) {
+	  if ($client->socket === $con)
+		return $client;
+	}
+	return FALSE;
   }
   function cleanClients() {
 	// TODO make it more gradual in time/phases? at least... making sure the pipes
@@ -125,15 +151,18 @@ class Daemon {
 	foreach ($this->clientz as $id => $client) {
 	  $tmp = $client->socket;
 	  if (isset($tmp)) {
-		if (destroy_connection($tmp)) {
-		  unset($this->clientz[$id]);
+		$err = destroy_connection($tmp);
+		if ($err === TRUE) {
 		  $this->logos->debug("disconnected client(" . $id . ")");
 		} else {
 		  $ret = FALSE;
 		  $failed += 1;
-		  $this->logos->debug("failed disconnecting client(" . $id . ")");
+		  $this->logos->debug("client(" . $id . ") disconnection faulted with:" . socket_strerror($err));
 		}
+		// remove anyway
+		unset($this->clientz[$id]);
 	  } else {
+		// TOFIX this is dead code since we unset whole client not his socket...
 		$this->logos->debug("client(" . $id .") already socketless");
 	  }
 	}
