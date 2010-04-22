@@ -14,6 +14,7 @@ class Daemon {
 	$this->logdir = $conf['logdir'];
 	$this->logopts = $conf['logopts'];
 	$this->clientz = array();
+	$this->clientnum = 0;
    }
 
   function init() {
@@ -71,8 +72,7 @@ class Daemon {
 		$this->addClient($con);
 	  /* LOL (PHP 5 >= 5.3.0)
 	     pcntl_signal_dispatch(); */
-	  // TODO by analogy we should write removeClient()... counting each time ain't pretty...
-	  if (count($this->clientz) > 0) {
+	  if ($this->clientnum > 0) {
 		$socks = array_map($clientsocks, $this->clientz);
 		if ($conarr = $this->net->ready_to_read($socks)) {
 		  foreach ($conarr as $socket) {
@@ -125,7 +125,7 @@ class Daemon {
 				  $this->logos->debug("tearing down connection " . $cid . "faulted with: " . socket_strerror($err));
 				}
 				//would we want to keep client after all? this calls for serious investigative work...
-				unset($this->clientz[$cid]);
+				removeClient($cid);
 			  }
 			}
 		  }
@@ -137,11 +137,19 @@ class Daemon {
 	$id = r_addy_port($con);
 	if (is_string($id)) {
 	  $this->clientz[$id] = new Client($this->logos, $id, $con);
+	  $this->clientnum += 1;
 	  $this->logos->debug("accepted connection from " . $id);
 	} else {
 	  destroy_connection($con);
 	  $this->logos->debug("failed to get remote address of new connection: " . socket_strerror($id));
 	}
+  }
+  function removeClient($id) {
+	//connection tearing code goes here? if not ... be wery careful.
+	if ($this->clientnum > 0) {
+	  $this->clientnum -= 1;
+	}
+	unset($this->clientz[$id]);
   }
   function findClient($con) {
 	foreach ($this->clientz as $id => $client) {
@@ -167,7 +175,7 @@ class Daemon {
 		  $this->logos->debug("client(" . $id . ") disconnection faulted with:" . socket_strerror($err));
 		}
 		// remove anyway
-		unset($this->clientz[$id]);
+		removeClient($id);
 	  } else {
 		// TOFIX this is dead code since we unset whole client not his socket...
 		$this->logos->debug("client(" . $id .") already socketless");
