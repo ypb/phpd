@@ -86,6 +86,11 @@ class Client {
 	$this->out_position = 0; //unused
 	// for now hacky logging...
 	$this->logos = $log ;
+	// retrying under writing uncertainty... see $client->{confirm_write,pending,kill_me}
+	$this->retrying = FALSE;
+	$this->last_write = time();
+	$this->wait = 15 + rand(0,30); //first wait at least 15 to 45 secs...
+	$this->retry_count = 0; //upto 3-4?
   }
   function process_with_process($string) {
 	$this->logos->datalog($this->clid . " processing=\n" . $string);
@@ -110,9 +115,14 @@ class Client {
 	else
 	  return FALSE;
   }
+  // this should be reogranized, but as a skeleton frst try [a bit messed up]
   function confirm_write($len) {
-	if ($len === FALSE)
-	  return $len;
+	// if there was a write error or wrote nothing: init retrying.
+	if ($len === FALSE || $len == 0) {
+	  $this->retrying_start();
+	  return FALSE;
+	}
+	$this->retrying_stop();
 	if ($len < strlen($this->out_buf)) {
 	  $this->out_buf = substr($this->out_buf, $len);
 	  return FALSE;
@@ -122,7 +132,53 @@ class Client {
 	}
   }
   function pending() {
-	return $this->out_buf;
+	if (($this->out_buf !== "") && $this->retry()) {
+	  return $this->out_buf;
+	} else {
+	  return FALSE;
+	}
+  }
+  function kill_me() {
+	if ($this->retrying && ($this->retry_count > 3)) {
+	  // we tried 3x and waited about half an hour... for confirm_write
+	  // 0th 15-45s
+	  // 1st + 2x0th = 30-90s
+	  // 2nd + 4x1st = 120-360s
+	  // 3rd + 8x2nd = 16-48m
+	  // 4th wait would be 16x0.5h... 8 hours... kill me, plz.
+	  return TRUE;
+	} else {
+	  return FALSE;
+	}
+  }
+  // merely init stuff...
+  function retrying_start() {
+	if (! $this->retrying) {
+	  $this->retrying = TRUE;
+	  $this->last_write = time();
+	  $this->wait = 15 + rand(0,30);
+	  $this->retry_count = 0;
+	}
+  }
+  // are we ready to retry?
+  function retry() {
+	if ($this->retrying) {
+	  $ts = time();
+	  if ($ts > ($this->last_write + $this->wait)) {
+		$this->retry_count++;
+		$this->last_write = $ts;
+		$this->wait = $this->wait * pow(2, $this->retry_count);
+		return TRUE;
+	  } else {
+		return FALSE;
+	  }
+	} else {
+	  // ready if not retrying at all
+	  return TRUE;
+	}
+  }
+  function retrying_stop() {
+	$this->retrying = FALSE;
   }
   // may be expensive?
   function check_encoding($x) {

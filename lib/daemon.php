@@ -74,6 +74,7 @@ class Daemon {
 	     pcntl_signal_dispatch(); */
 	  if ($this->clientnum > 0) {
 		$socks = array_map($clientsocks, $this->clientz);
+		// READ this should prolly go in its own fun since you can't see WRITE way there below
 		if ($conarr = $this->net->ready_to_read($socks)) {
 		  foreach ($conarr as $socket) {
 			// theoretically should have something tangible to read...
@@ -97,11 +98,7 @@ class Daemon {
 					$this->logos->debug("found client with peerless socket: " . socket_strerror($id));
 				  if ($back = $client->process_with_process($data)) {
 					// for now simply write back immediately
-					$wrote = $this->net->write($socket, $back);
-					while (! $client->confirm_write($wrote)) {
-					  // sleep(1); some...
-					  $wrote = $this->net->write($socket, $client->pending());
-					}
+					$client->confirm_write($this->net->write($socket, $back));
 					// where to error/length check... in the Client of course ;}
 				  }
 				}
@@ -116,20 +113,26 @@ class Daemon {
 				$this->logos->debug("AWOL client! Send the MPs!");
 				destroy_connection($socket);
 			  } else {
-				$cid = $client->id;
-				$this->logos->debug("widing down client(" . $cid . ") on: " . socket_strerror($err));
-				$err = destroy_connection($socket);
-				if ($err === TRUE) {
-				  $this->logos->debug("removed client(" . $cid . ") connection");
-				} else {
-				  $this->logos->debug("tearing down connection " . $cid . "faulted with: " . socket_strerror($err));
-				}
-				//would we want to keep client after all? this calls for serious investigative work...
-				$this->removeClient($cid);
+				$this->windClientDown($client, $err);
 			  }
 			}
 		  }
 		}
+		// WRITE if there is still smth left from immediate write after process_with_process
+		// or if we need to retry for some unknown reason.
+		// we should really first select on sockets... this is unruly...
+		foreach ($this->clientz as $client) {
+		  $data = $client->pending();
+		  if ($data !== FALSE) {
+			// HA, this is so ass-backward! TOFIX
+			$client->confirm_write($this->net->write($client->socket, $data));
+			if ($client->kill_me()) {
+			  $this->logos->debug("suicide client(" . $client->id . ")");
+			  $this->windClientDown($client, socket_last_error($client->socket));
+			}
+		  }
+		}
+		// NOW an exercise for the reader: can we still get zombie clients...?
 	  }
 	}
   }
@@ -157,6 +160,19 @@ class Daemon {
 		return $client;
 	}
 	return FALSE;
+  }
+  function windClientDown($client, $err) {
+	$id = $client->id;
+	$this->logos->debug("winding down client(" . $id . ") on: " . socket_strerror($err));
+	// hmm... can we overwrite argument?
+	$err = destroy_connection($client->socket);
+	if ($err === TRUE) {
+	  $this->logos->debug("removed client(" . $id . ") connection");
+	} else {
+	  $this->logos->debug("tearing down connection " . $id . "faulted with: " . socket_strerror($err));
+	}
+	//would we want to keep client after all? this calls for serious investigative work...
+	$this->removeClient($id);
   }
   function cleanClients() {
 	// TODO make it more gradual in time/phases? at least... making sure the pipes
